@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Live Discord Stats</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #171a23;
+    --accent: #5865F2;
+    --text: #e7e9ee;
+    --muted: #9aa0ac;
+    --online: #3ba55d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 32px;
+  }
+  h1 { font-size: 1.4rem; margin-bottom: 4px; }
+  .sub { color: var(--muted); margin-bottom: 24px; font-size: 0.85rem; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 18px 20px;
+    border: 1px solid #262a36;
+  }
+  .card .label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: .04em; }
+  .card .value { font-size: 1.8rem; font-weight: 700; margin-top: 6px; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+  .dot.on { background: var(--online); }
+  .dot.off { background: #ed4245; }
+  .panel { background: var(--card); border-radius: 12px; padding: 18px 20px; border: 1px solid #262a36; margin-bottom: 16px; }
+  .panel h2 { font-size: 1rem; margin: 0 0 12px 0; }
+  .msg { padding: 6px 0; border-bottom: 1px solid #262a36; font-size: 0.9rem; }
+  .msg:last-child { border-bottom: none; }
+  .msg .author { color: var(--accent); font-weight: 600; }
+  .msg .channel { color: var(--muted); font-size: 0.75rem; }
+  .voice-user { display:inline-block; background:#1f2330; padding:4px 10px; border-radius:20px; margin:4px 6px 0 0; font-size:0.85rem; }
+</style>
+</head>
+<body>
+
+  <h1 id="guildName">Verbinde...</h1>
+  <div class="sub"><span class="dot off" id="connDot"></span><span id="connStatus">nicht verbunden</span> · zuletzt aktualisiert: <span id="lastUpdated">-</span></div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="label">Mitglieder</div>
+      <div class="value" id="memberCount">-</div>
+    </div>
+    <div class="card">
+      <div class="label">Online</div>
+      <div class="value" id="onlineCount">-</div>
+    </div>
+    <div class="card">
+      <div class="label">Nachrichten (1h)</div>
+      <div class="value" id="msgCount">-</div>
+    </div>
+    <div class="card">
+      <div class="label">In Voice-Channels</div>
+      <div class="value" id="voiceCount">-</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>🎙️ Wer ist gerade in Voice</h2>
+    <div id="voiceUsers">Keine Daten</div>
+  </div>
+
+  <div class="panel">
+    <h2>💬 Letzte Nachrichten</h2>
+    <div id="recentMessages">Keine Daten</div>
+  </div>
+
+<script>
+  // Passe die Adresse an, falls der Bot auf einem anderen Host/Port läuft
+  const WS_URL = "ws://localhost:8000/ws";
+
+  const connDot = document.getElementById("connDot");
+  const connStatus = document.getElementById("connStatus");
+
+  function connect() {
+    const ws = new WebSocket(WS_URL);
+
+    ws.onopen = () => {
+      connDot.className = "dot on";
+      connStatus.textContent = "live verbunden";
+    };
+
+    ws.onclose = () => {
+      connDot.className = "dot off";
+      connStatus.textContent = "getrennt – erneuter Versuch in 3s";
+      setTimeout(connect, 3000);
+    };
+
+    ws.onerror = () => ws.close();
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      render(data);
+    };
+  }
+
+  function render(data) {
+    document.getElementById("guildName").textContent = data.guild_name || "Discord Server";
+    document.getElementById("memberCount").textContent = data.member_count ?? "-";
+    document.getElementById("onlineCount").textContent = data.online_count ?? "-";
+    document.getElementById("msgCount").textContent = data.messages_last_hour ?? "-";
+    document.getElementById("voiceCount").textContent = (data.voice_users || []).length;
+
+    document.getElementById("lastUpdated").textContent = data.last_updated
+      ? new Date(data.last_updated).toLocaleTimeString()
+      : "-";
+
+    const voiceEl = document.getElementById("voiceUsers");
+    voiceEl.innerHTML = (data.voice_users || []).length
+      ? data.voice_users.map(v => `<span class="voice-user">${escapeHtml(v.name)} · ${escapeHtml(v.channel)}</span>`).join("")
+      : "Aktuell niemand in einem Voice-Channel";
+
+    const msgEl = document.getElementById("recentMessages");
+    const msgs = [...(data.recent_messages || [])].reverse();
+    msgEl.innerHTML = msgs.length
+      ? msgs.map(m => `
+          <div class="msg">
+            <span class="author">${escapeHtml(m.author)}</span>
+            <span class="channel">#${escapeHtml(m.channel)}</span><br>
+            ${escapeHtml(m.content)}
+          </div>`).join("")
+      : "Noch keine Nachrichten erfasst";
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  connect();
+</script>
+</body>
+</html>
