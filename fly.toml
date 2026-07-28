@@ -1,4 +1,4 @@
-app = "discord-live-bot"
+app = "disccord-live-bot"
 
 [http_service]
   internal_port = 8000
