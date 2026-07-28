@@ -40,7 +40,7 @@ load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = os.getenv("GUILD_ID")  # optional: nur diesen Server tracken
 HOST = os.getenv("WEB_HOST", "0.0.0.0")
-PORT = int(os.getenv("WEB_PORT", "8000"))
+PORT = int(os.getenv("WEB_PORT", "80"))
 
 if not TOKEN:
     raise SystemExit("Kein DISCORD_TOKEN gefunden. Bitte .env Datei anlegen (siehe .env.example).")
