@@ -1,0 +1,4 @@
+app = "disccord-live-bot"
+
+[http_service]
+...
