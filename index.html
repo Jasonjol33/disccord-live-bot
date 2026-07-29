@@ -2,141 +2,383 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Live Discord Stats</title>
-<style>
-  :root {
-    --bg: #0f1117;
-    --card: #171a23;
-    --accent: #5865F2;
-    --text: #e7e9ee;
-    --muted: #9aa0ac;
-    --online: #3ba55d;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: "Segoe UI", system-ui, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    padding: 32px;
-  }
-  h1 { font-size: 1.4rem; margin-bottom: 4px; }
-  .sub { color: var(--muted); margin-bottom: 24px; font-size: 0.85rem; }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
-  }
-  .card {
-    background: var(--card);
-    border-radius: 12px;
-    padding: 18px 20px;
-    border: 1px solid #262a36;
-  }
-  .card .label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: .04em; }
-  .card .value { font-size: 1.8rem; font-weight: 700; margin-top: 6px; }
-  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
-  .dot.on { background: var(--online); }
-  .dot.off { background: #ed4245; }
-  .panel { background: var(--card); border-radius: 12px; padding: 18px 20px; border: 1px solid #262a36; margin-bottom: 16px; }
-  .panel h2 { font-size: 1rem; margin: 0 0 12px 0; }
-  .msg { padding: 6px 0; border-bottom: 1px solid #262a36; font-size: 0.9rem; }
-  .msg:last-child { border-bottom: none; }
-  .msg .author { color: var(--accent); font-weight: 600; }
-  .msg .channel { color: var(--muted); font-size: 0.75rem; }
-  .voice-user { display:inline-block; background:#1f2330; padding:4px 10px; border-radius:20px; margin:4px 6px 0 0; font-size:0.85rem; }
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS // Gaming Community</title>
+<meta name="description" content="NEXUS — Der Discord-Server für kompetitive Gamer. Events, Giveaways, Live-Serverstatus und eine Community, die nie schläft.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <h1 id="guildName">Verbinde...</h1>
-  <div class="sub"><span class="dot off" id="connDot"></span><span id="connStatus">nicht verbunden</span> · zuletzt aktualisiert: <span id="lastUpdated">-</span></div>
+<!-- Ladeanimation -->
+<div id="loader" class="loader">
+  <div class="loader-core">
+    <svg viewBox="0 0 100 100" class="loader-hex">
+      <polygon points="50,3 93,26 93,74 50,97 7,74 7,26" fill="none" stroke="url(#loaderGrad)" stroke-width="2"/>
+      <defs>
+        <linearGradient id="loaderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#4f9dff"/>
+          <stop offset="100%" stop-color="#a855f7"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <span class="loader-label">NEXUS<span class="loader-dots"></span></span>
+  </div>
+</div>
 
-  <div class="grid">
-    <div class="card">
-      <div class="label">Mitglieder</div>
-      <div class="value" id="memberCount">-</div>
-    </div>
-    <div class="card">
-      <div class="label">Online</div>
-      <div class="value" id="onlineCount">-</div>
-    </div>
-    <div class="card">
-      <div class="label">Nachrichten (1h)</div>
-      <div class="value" id="msgCount">-</div>
-    </div>
-    <div class="card">
-      <div class="label">In Voice-Channels</div>
-      <div class="value" id="voiceCount">-</div>
+<!-- Diagnose-Banner: zeigt Probleme mit Live-Daten (Discord/Minecraft) sichtbar an -->
+<div id="debugBanner" class="debug-banner"></div>
+
+<!-- Animierter Partikel-Hintergrund (Canvas, global) -->
+<canvas id="bg-canvas"></canvas>
+<div class="scanline-overlay" aria-hidden="true"></div>
+
+<!-- Navigation -->
+<header class="nav" id="nav">
+  <div class="nav-inner">
+    <a href="#hero" class="brand">
+      <span class="brand-mark">
+        <svg viewBox="0 0 24 24" width="26" height="26"><polygon points="12,2 22,7 22,17 12,22 2,17 2,7" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3.4" fill="currentColor"/></svg>
+      </span>
+      <span class="brand-text">NEXUS</span>
+    </a>
+
+    <nav class="nav-links" aria-label="Hauptnavigation">
+      <a href="#news">News</a>
+      <a href="#community">Community</a>
+      <a href="#events">Events</a>
+      <a href="#status">Serverstatus</a>
+      <a href="#giveaways">Giveaways</a>
+    </nav>
+
+    <div class="nav-actions">
+      <div class="search-wrap">
+        <button id="searchToggle" class="icon-btn" aria-label="Suche öffnen" aria-expanded="false" aria-controls="searchBox">
+          <svg viewBox="0 0 24 24" width="19" height="19"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><line x1="21" y1="21" x2="16.6" y2="16.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <div class="search-box" id="searchBox">
+          <input type="text" id="searchInput" placeholder="News, Events, Games durchsuchen…" autocomplete="off">
+          <div id="searchResults" class="search-results"></div>
+        </div>
+      </div>
+      <a class="cta-btn" href="#community">
+        <svg viewBox="0 0 127.14 96.36" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"/></svg>
+        Server beitreten
+      </a>
+      <button class="hamburger" id="hamburger" aria-label="Menü öffnen" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
     </div>
   </div>
-
-  <div class="panel">
-    <h2>🎙️ Wer ist gerade in Voice</h2>
-    <div id="voiceUsers">Keine Daten</div>
+  <div class="mobile-menu" id="mobileMenu">
+    <a href="#news">News</a>
+    <a href="#community">Community</a>
+    <a href="#events">Events</a>
+    <a href="#status">Serverstatus</a>
+    <a href="#giveaways">Giveaways</a>
   </div>
+</header>
 
-  <div class="panel">
-    <h2>💬 Letzte Nachrichten</h2>
-    <div id="recentMessages">Keine Daten</div>
+<main>
+
+  <!-- HERO -->
+  <section class="hero" id="hero">
+    <div class="hero-bg">
+      <img src="https://images.unsplash.com/photo-1538481199705-c710c4e965fc?q=80&w=2000&auto=format&fit=crop" alt="" class="hero-img">
+      <div class="hero-gradient"></div>
+      <div class="hero-grid"></div>
+    </div>
+
+    <div class="hero-content">
+      <div class="hero-eyebrow">
+        <span class="pulse-dot"></span>
+        <span id="heroOnlineCount">4.827</span> Spieler online
+      </div>
+      <h1 class="hero-title">
+        <span class="hero-title-line">GAMING</span>
+        <span class="hero-title-line hero-title-accent">COMMUNITY</span>
+      </h1>
+      <p class="hero-desc">
+        NEXUS ist der Treffpunkt für Spieler, die mehr wollen: kompetitive Squads, tägliche Events,
+        eine Community, die rund um die Uhr online ist — und ein Server, der sich anfühlt wie dein zweites Zuhause.
+      </p>
+      <div class="hero-actions">
+        <a href="#community" class="btn btn-primary">
+          Jetzt Discord beitreten
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a href="#events" class="btn btn-ghost">Nächste Events ansehen</a>
+      </div>
+
+      <div class="hero-stats">
+        <div class="hero-stat"><span class="hero-stat-value" data-count="128400">0</span><span class="hero-stat-label">Mitglieder</span></div>
+        <div class="hero-stat"><span class="hero-stat-value" data-count="4827">0</span><span class="hero-stat-label">Online jetzt</span></div>
+        <div class="hero-stat"><span class="hero-stat-value" data-count="312">0</span><span class="hero-stat-label">Voice aktiv</span></div>
+        <div class="hero-stat"><span class="hero-stat-value" data-count="96">0</span><span class="hero-stat-label">Uptime %</span></div>
+      </div>
+    </div>
+
+    <a href="#news" class="scroll-hint" aria-label="Nach unten scrollen">
+      <span></span>
+    </a>
+  </section>
+
+  <!-- NEWS -->
+  <section class="section" id="news">
+    <div class="section-inner">
+      <div class="section-head reveal">
+        <span class="section-tag">// 01 Feed</span>
+        <h2 class="section-title">Neuigkeiten</h2>
+        <p class="section-sub">Patches, Ankündigungen und Community-Updates — direkt aus unserem Discord.</p>
+      </div>
+
+      <div class="news-grid" id="newsGrid">
+        <!-- News-Karten werden von script.js gerendert -->
+      </div>
+    </div>
+  </section>
+
+  <!-- COMMUNITY -->
+  <section class="section section-alt" id="community">
+    <div class="section-inner">
+      <div class="section-head reveal">
+        <span class="section-tag">// 02 Discord</span>
+        <h2 class="section-title">Community</h2>
+        <p class="section-sub">Live-Daten direkt aus unserem Discord-Server.</p>
+      </div>
+
+      <div class="community-grid">
+        <div class="glass-card community-main reveal">
+          <div class="community-header">
+            <div class="server-icon">N</div>
+            <div>
+              <h3>NEXUS Gaming</h3>
+              <p class="muted">discord.gg/nexus-gaming</p>
+            </div>
+            <a href="#" class="btn btn-primary btn-sm">Beitreten</a>
+          </div>
+          <div class="community-metrics">
+            <div class="metric">
+              <span class="metric-value" id="metricMembers">—</span>
+              <span class="metric-label">Mitglieder</span>
+            </div>
+            <div class="metric">
+              <span class="metric-value online-color" id="metricOnline">—</span>
+              <span class="metric-label"><span class="status-dot status-online"></span>Online</span>
+            </div>
+            <div class="metric">
+              <span class="metric-value" id="metricVoice">—</span>
+              <span class="metric-label">In Voice-Channels</span>
+            </div>
+          </div>
+
+          <div class="voice-channels" id="voiceChannels">
+            <h4 class="mini-title">Aktive Voice-Channels</h4>
+            <div class="vc-list" id="vcList"></div>
+          </div>
+        </div>
+
+        <div class="glass-card community-side reveal">
+          <h4 class="mini-title" id="communitySideTitle">Neue Mitglieder</h4>
+          <ul class="member-list" id="newMembers"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EVENTS -->
+  <section class="section" id="events">
+    <div class="section-inner">
+      <div class="section-head reveal">
+        <span class="section-tag">// 03 Kalender</span>
+        <h2 class="section-title">Events</h2>
+        <p class="section-sub">Turniere, Watchparties und Community-Nights — verpass nichts mehr.</p>
+      </div>
+
+      <div class="events-layout">
+        <div class="event-featured glass-card reveal" id="eventFeatured">
+          <!-- Featured Event wird per JS gefüllt -->
+        </div>
+
+        <div class="event-list" id="eventList">
+          <!-- weitere Events per JS -->
+        </div>
+      </div>
+
+      <div class="calendar glass-card reveal" id="calendar">
+        <div class="calendar-header">
+          <button id="calPrev" class="icon-btn" aria-label="Vorheriger Monat">‹</button>
+          <h4 id="calMonthLabel">Monat</h4>
+          <button id="calNext" class="icon-btn" aria-label="Nächster Monat">›</button>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SERVERSTATUS -->
+  <section class="section section-alt" id="status">
+    <div class="section-inner">
+      <div class="section-head reveal">
+        <span class="section-tag">// 04 Live-Status</span>
+        <h2 class="section-title">Serverstatus</h2>
+        <p class="section-sub">Echtzeit-Status unserer Game-Server.</p>
+      </div>
+
+      <div class="status-grid" id="statusGrid">
+        <!-- Server-Status-Karten per JS -->
+      </div>
+    </div>
+  </section>
+
+  <!-- GEWINNSPIELE -->
+  <section class="section" id="giveaways">
+    <div class="section-inner">
+      <div class="section-head reveal">
+        <span class="section-tag">// 05 Giveaways</span>
+        <h2 class="section-title">Gewinnspiele</h2>
+        <p class="section-sub">Aktive Giveaways in unserem Discord — Teilnahme kostenlos, Gewinner werden live gezogen.</p>
+      </div>
+
+      <div class="giveaway-grid" id="giveawayGrid">
+        <!-- Giveaway-Karten per JS -->
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="brand-mark">
+        <svg viewBox="0 0 24 24" width="22" height="22"><polygon points="12,2 22,7 22,17 12,22 2,17 2,7" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3.4" fill="currentColor"/></svg>
+      </span>
+      <span>NEXUS</span>
+    </div>
+    <p class="muted footer-note">Inhalte werden automatisch über einen Discord-Webhook synchronisiert. Letztes Update: <span id="lastSync">—</span></p>
+    <div class="footer-links">
+      <a href="#hero">Nach oben</a>
+      <a href="#community">Discord</a>
+    </div>
   </div>
+</footer>
 
+<div class="toast" id="toast"></div>
+
+<script src="script.js"></script>
+
+<!-- Live-Discord-Daten: verbindet sich per WebSocket mit dem Bot und aktualisiert
+     Mitglieder-/Online-/Voice-Zahlen sowie die aktiven Voice-Channels in Echtzeit. -->
 <script>
+(function () {
   // Passe die Adresse an, falls der Bot auf einem anderen Host/Port läuft
   const WS_URL = "wss://disccord-live-bot.fly.dev/ws";
 
-  const connDot = document.getElementById("connDot");
-  const connStatus = document.getElementById("connStatus");
+  const debugBanner = document.getElementById("debugBanner");
+  const heroOnlineCount = document.getElementById("heroOnlineCount");
+  const metricMembers = document.getElementById("metricMembers");
+  const metricOnline = document.getElementById("metricOnline");
+  const metricVoice = document.getElementById("metricVoice");
+  const vcList = document.getElementById("vcList");
+  const lastSync = document.getElementById("lastSync");
+
+  // die 4 animierten Hero-Zahlen (Mitglieder / Online jetzt / Voice aktiv / Uptime %)
+  const heroStatEls = document.querySelectorAll(".hero-stat-value");
+  const heroStatMembers = heroStatEls[0];
+  const heroStatOnline = heroStatEls[1];
+  const heroStatVoice = heroStatEls[2];
+
+  function showBanner(msg, isError) {
+    if (!debugBanner) return;
+    debugBanner.textContent = msg;
+    debugBanner.style.display = msg ? "block" : "none";
+    debugBanner.classList.toggle("debug-banner--error", !!isError);
+  }
+
+  function fmt(n) {
+    return typeof n === "number" ? n.toLocaleString("de-DE") : n ?? "—";
+  }
 
   function connect() {
-    const ws = new WebSocket(WS_URL);
+    let ws;
+    try {
+      ws = new WebSocket(WS_URL);
+    } catch (e) {
+      showBanner("Live-Verbindung zum Discord-Bot konnte nicht aufgebaut werden.", true);
+      setTimeout(connect, 3000);
+      return;
+    }
 
-    ws.onopen = () => {
-      connDot.className = "dot on";
-      connStatus.textContent = "live verbunden";
-    };
+    ws.onopen = () => showBanner("");
 
     ws.onclose = () => {
-      connDot.className = "dot off";
-      connStatus.textContent = "getrennt – erneuter Versuch in 3s";
+      showBanner("Getrennt vom Live-Server – erneuter Versuch in 3s …", true);
       setTimeout(connect, 3000);
     };
 
     ws.onerror = () => ws.close();
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      render(data);
+      try {
+        render(JSON.parse(event.data));
+      } catch (e) {
+        // ungültige Nachricht ignorieren
+      }
     };
   }
 
   function render(data) {
-    document.getElementById("guildName").textContent = data.guild_name || "Discord Server";
-    document.getElementById("memberCount").textContent = data.member_count ?? "-";
-    document.getElementById("onlineCount").textContent = data.online_count ?? "-";
-    document.getElementById("msgCount").textContent = data.messages_last_hour ?? "-";
-    document.getElementById("voiceCount").textContent = (data.voice_users || []).length;
+    const memberCount = data.member_count;
+    const onlineCount = data.online_count;
+    const voiceUsers = data.voice_users || [];
+    const voiceCount = voiceUsers.length;
 
-    document.getElementById("lastUpdated").textContent = data.last_updated
-      ? new Date(data.last_updated).toLocaleTimeString()
-      : "-";
+    if (heroOnlineCount) heroOnlineCount.textContent = fmt(onlineCount);
+    if (metricMembers) metricMembers.textContent = fmt(memberCount);
+    if (metricOnline) metricOnline.textContent = fmt(onlineCount);
+    if (metricVoice) metricVoice.textContent = fmt(voiceCount);
 
-    const voiceEl = document.getElementById("voiceUsers");
-    voiceEl.innerHTML = (data.voice_users || []).length
-      ? data.voice_users.map(v => `<span class="voice-user">${escapeHtml(v.name)} · ${escapeHtml(v.channel)}</span>`).join("")
-      : "Aktuell niemand in einem Voice-Channel";
+    if (heroStatMembers && memberCount != null) {
+      heroStatMembers.textContent = fmt(memberCount);
+      heroStatMembers.dataset.count = memberCount;
+    }
+    if (heroStatOnline && onlineCount != null) {
+      heroStatOnline.textContent = fmt(onlineCount);
+      heroStatOnline.dataset.count = onlineCount;
+    }
+    if (heroStatVoice) {
+      heroStatVoice.textContent = fmt(voiceCount);
+      heroStatVoice.dataset.count = voiceCount;
+    }
 
-    const msgEl = document.getElementById("recentMessages");
-    const msgs = [...(data.recent_messages || [])].reverse();
-    msgEl.innerHTML = msgs.length
-      ? msgs.map(m => `
-          <div class="msg">
-            <span class="author">${escapeHtml(m.author)}</span>
-            <span class="channel">#${escapeHtml(m.channel)}</span><br>
-            ${escapeHtml(m.content)}
-          </div>`).join("")
-      : "Noch keine Nachrichten erfasst";
+    if (vcList) {
+      const byChannel = {};
+      voiceUsers.forEach((v) => {
+        const ch = v.channel || "Unbekannt";
+        (byChannel[ch] = byChannel[ch] || []).push(v.name);
+      });
+      const channels = Object.keys(byChannel);
+      vcList.innerHTML = channels.length
+        ? channels
+            .map(
+              (ch) => `
+              <div class="vc-item">
+                <span class="vc-name">🔊 ${escapeHtml(ch)}</span>
+                <span class="vc-users">${byChannel[ch].map(escapeHtml).join(", ")}</span>
+              </div>`
+            )
+            .join("")
+        : `<p class="muted">Aktuell niemand in einem Voice-Channel</p>`;
+    }
+
+    if (lastSync) {
+      lastSync.textContent = data.last_updated
+        ? new Date(data.last_updated).toLocaleTimeString("de-DE")
+        : "—";
+    }
   }
 
   function escapeHtml(str) {
@@ -146,6 +388,7 @@
   }
 
   connect();
+})();
 </script>
 </body>
 </html>
